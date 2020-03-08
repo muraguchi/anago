@@ -1,0 +1,25 @@
+// Bandai BWARA
+
+board <- { 
+mappernum = 152,
+cpu_romsize = 1*mega, cpu_banksize = 0x4000, 
+ppu_romsize = 1*mega, ppu_banksize = 0x2000, 
+ppu_ramfind = false, vram_mirrorfind = true 
+};
+
+const mirroring=0;
+
+function cpu_dump (d, pagesize, banksize) 
+{ 
+	for(local i = 0; i < pagesize; i += 1){
+		cpu_write(d, 0x8000, mirroring<<7 | ( i & 0x07)<<4 );
+		cpu_read(d, 0x8000, banksize);
+	}
+} 
+function ppu_dump (d, pagesize, banksize) 
+{ 
+	for(local i = 0; i < pagesize; i += 1){
+		cpu_write(d, 0x8000, mirroring<<7 | (i & 0xf) );
+		ppu_read(d, 0x0000, banksize);
+	}
+}
