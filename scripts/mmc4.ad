@@ -1,19 +1,17 @@
 board <- {
 	mappernum = 10,
-	cpu_romsize = 2 * mega, cpu_banksize = 0x2000,
+	cpu_romsize = 2 * mega, cpu_banksize = 0x4000,
 	ppu_romsize = 1 * mega, ppu_banksize = 0x1000,
 	ppu_ramfind = false, vram_mirrorfind = false
 };
 
 function cpu_dump(d, pagesize, banksize)
 {
-	for(local i = 0; i < pagesize - 2; i += 2){ //Read all but last two banks
-		cpu_write(d, 0xA000, i); 	//8KB bank @ $8000
-		cpu_read(d, 0x8000, banksize * 2);	 //Read 8KB bank from $8000-9FFF
+	for(local i = 0; i < pagesize - 1; i++){ // Read all but last two banks
+		cpu_write(d, 0xA000, i); 	 // Select 16KB bank
+		cpu_read(d, 0x8000, banksize);	
 	}
-	//Read last 2x 8KB ($C000-FFFF fixed to last)
-	cpu_read(d, 0xC000, banksize * 1);
-	cpu_read(d, 0xE000, banksize * 1);
+	cpu_read(d, 0xC000, banksize);
 }
 function ppu_dump(d, pagesize, banksize)
 {
