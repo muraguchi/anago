@@ -7,7 +7,7 @@ board <- {
 
 function cpu_dump(d, pagesize, banksize)
 {
-	for(local i = 0; i < pagesize - 1; i++){ // Read all but last two banks
+	for(local i = 0; i < pagesize - 1; i++){ // Read all but the last bank
 		cpu_write(d, 0xA000, i); 	 // Select 16KB bank
 		cpu_read(d, 0x8000, banksize);	
 	}
