@@ -1,0 +1,138 @@
+board <- {
+	mappernum = 19,
+	cpu_romsize = 0x40000, cpu_banksize = 0x2000,
+	ppu_romsize = 0x20000, ppu_banksize = 0x400,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+Banks
+CPU $6000-$7FFF: 8 KB PRG RAM bank, if WRAM is present
+CPU $8000-$9FFF: 8 KB switchable PRG ROM bank
+CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
+CPU $C000-$DFFF: 8 KB switchable PRG ROM bank
+CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
+PPU $0000-$03FF: 1 KB switchable CHR bank
+PPU $0400-$07FF: 1 KB switchable CHR bank
+PPU $0800-$0BFF: 1 KB switchable CHR bank
+PPU $0C00-$0FFF: 1 KB switchable CHR bank
+PPU $1000-$13FF: 1 KB switchable CHR bank
+PPU $1400-$17FF: 1 KB switchable CHR bank
+PPU $1800-$1BFF: 1 KB switchable CHR bank
+PPU $1C00-$1FFF: 1 KB switchable CHR bank
+PPU $2000-$23FF: 1 KB switchable CHR bank
+PPU $2400-$27FF: 1 KB switchable CHR bank
+PPU $2800-$2BFF: 1 KB switchable CHR bank
+PPU $2C00-$2FFF: 1 KB switchable CHR bank
+These ASICs have the unusual ability to select the internal 2 KB nametable RAM as a CHR bank page, allowing it to be used as CHR RAM in combination with the existing CHR ROM.
+
+Registers
+The 163 has 19 registers within $4800-$5FFF and $8000-$FFFF. Each register occupies a range of $800 bytes, so $4800-$4FFF all refers to one register, $5000-$57FF all refers to another register, and so on.
+
+Chip RAM Data Port ($4800-$4FFF) r/w
+See Namco 163 audio.
+
+IRQ Counter (low) ($5000-$57FF) r/w
+7  bit  0
+---- ----
+IIII IIII
+|||| ||||
+++++-++++- Low 8 bits of IRQ counter
+IRQ Counter (high) / IRQ Enable ($5800-$5FFF) r/w
+7  bit  0
+---- ----
+EIII IIII
+|||| ||||
+|+++-++++- High 7 bits of IRQ counter
++--------- IRQ Enable: (0: disabled; 1: enabled)
+CHR and NT Select ($8000-$DFFF) w
+Value CPU writes	Behavior
+$00-$DF	Always selects 1KB page of CHR-ROM
+$E0-$FF	If enabled by bit in $E800, use the NES's internal nametables (even values for A, odd values for B)
+Write to CPU address	1KB CHR bank affected	Values ≥ $E0 denote NES NTRAM if
+$8000-$87FF	$0000-$03FF	$E800.6 = 0
+$8800-$8FFF	$0400-$07FF	$E800.6 = 0
+$9000-$97FF	$0800-$0BFF	$E800.6 = 0
+$9800-$9FFF	$0C00-$0FFF	$E800.6 = 0
+$A000-$A7FF	$1000-$13FF	$E800.7 = 0
+$A800-$AFFF	$1400-$17FF	$E800.7 = 0
+$B000-$B7FF	$1800-$1BFF	$E800.7 = 0
+$B800-$BFFF	$1C00-$1FFF	$E800.7 = 0
+$C000-$C7FF	$2000-$23FF	always
+$C800-$CFFF	$2400-$27FF	always
+$D000-$D7FF	$2800-$2BFF	always
+$D800-$DFFF	$2C00-$2FFF	always
+It is believed, but untested, that a game could add a normal SRAM and use it in lieu of the nametable RAM; if so, a game would be able to get 4-screen mirroring and many more pages of CHR-RAM.
+
+PRG Select 1 ($E000-$E7FF) w
+7  bit  0
+---- ----
+AMPP PPPP
+|||| ||||
+||++-++++- Select 8KB page of PRG-ROM at $8000
+|+-------- Disable sound if set
++--------- Pin 22 (open collector) reflects the inverse of this value at all CPU address ranges.
+PRG Select 2 / CHR-RAM Enable ($E800-$EFFF) w
+7  bit  0
+---- ----
+HLPP PPPP
+|||| ||||
+||++-++++- Select 8KB page of PRG-ROM at $A000
+|+-------- Disable CHR-RAM at $0000-$0FFF
+|            0: Pages $E0-$FF use NT RAM as CHR-RAM
+|            1: Pages $E0-$FF are the last $20 banks of CHR-ROM
++--------- Disable CHR-RAM at $1000-$1FFF
+             0: Pages $E0-$FF use NT RAM as CHR-RAM
+             1: Pages $E0-$FF are the last $20 banks of CHR-ROM
+PRG Select 3 ($F000-$F7FF) w
+7  bit  0
+---- ----
+B.PP PPPP
+| || ||||
+| ++-++++- Select 8KB page of PRG-ROM at $C000
++--------- Pin 44 reflects this value at all CPU address ranges.
+Write Protect for External RAM AND Chip RAM Address Port ($F800-$FFFF) w
+7  bit  0
+---- ----
+KKKK DCBA
+|||| ||||
+|||| |||+- 1: Write-protect 2kB window of external RAM from $6000-$67FF (0: write enable)
+|||| ||+-- 1: Write-protect 2kB window of external RAM from $6800-$6FFF (0: write enable)
+|||| |+--- 1: Write-protect 2kB window of external RAM from $7000-$77FF (0: write enable)
+|||| +---- 1: Write-protect 2kB window of external RAM from $7800-$7FFF (0: write enable)
+++++------ Additionally the upper nybble must be equal to b0100 to enable writes
+Any value outside of the range $40-$4E will cause all PRG RAM to be read-only.
+
+Also see Namco 163 audio.
+
+IRQ Operation
+The IRQ is a 15-bit CPU cycle up-counter. $5000 and $5800 provide direct access to the counter itself (i.e., this isn't a reload value). Games can read and write to these registers in realtime.
+
+The IRQ counter increments on each CPU cycle. Upon reaching $7FFF, an IRQ is fired, and it stops counting. Writing to $5000 or $5800 will acknowledge any pending IRQs.
+
+Notes
+Many older programs incorrectly identify this mapper by the name Namco 106. Some sources use the name Namcot instead of Namco, as some games and PCBs use this variation on the company name.
+The N163 supports 8k of PRG-RAM but also has 128 bytes of internal memory. If there is a battery, then both will be battery backed. The internal memory is battery backed for several games that have no additional PRG-RAM.
+The only known difference between the Namco 129 and 163 is the 129's faulty implementation of expansion audio. The only known game (Star Wars) using the Namco 129 can also be found in later runs with a Namco 163 ASIC.
+Many INES Mapper 210 games are incorrectly set to Mapper 019.
+Dokuganryuu Masamune is often thought as having WRAM. Tests have indicated however that the fourth glob is not SRAM but a protection circuit for the chip-internal RAM.
+*/
+
+
+
+function cpu_dump(d, pagesize, banksize)
+{
+        for(local i = 0; i < (pagesize-1); i++){
+		  cpu_write(d,0xE000,i&0x7f);
+		  cpu_read(d, 0x8000, banksize);
+        }
+	// Last 8KB PRG fixed ROM
+	cpu_read(d, 0xe000, banksize);
+}
+function ppu_dump(d, pagesize, banksize)
+{
+	for(local i = 0; i < pagesize; i++){
+ 		  cpu_write(d,0x8000,i);
+		  ppu_read(d,0x0000,banksize);
+	}
+}
