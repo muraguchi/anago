@@ -1,0 +1,35 @@
+// Sunsoft: Fantasy_Zone(J)
+board <- {
+	mappernum = 93,
+	cpu_romsize = 0x20000, cpu_banksize = 0x4000,
+	ppu_romsize = 0x0, ppu_banksize = 0x2000,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+ --------------------------
+   
+   $6000:  [... .PPP]
+     P = PRG Reg  (16k @ $8000)
+ 
+ PRG Setup:
+ --------------------------
+ 
+       $8000   $A000   $C000   $E000  
+     +---------------+---------------+
+     |     $8000     |     { -1}     |
+     +---------------+---------------+
+*/
+
+
+function cpu_dump(d, pagesize, banksize)
+{
+	for(local i=0; i<(pagesize-1);i++){
+		  cpu_write(d, 0x6000, i);
+		  cpu_read(d, 0x8000, banksize);
+	}
+	cpu_read(d, 0xC000, banksize);
+}
+function ppu_dump(d, pagesize, banksize)
+{
+}

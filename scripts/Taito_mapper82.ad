@@ -1,0 +1,161 @@
+// Taito: Kyuukyoku Harikiri Stadium Heiseigannenban
+board <- {
+	mappernum = 82,
+	cpu_romsize = 0x20000, cpu_banksize = 0x2000,
+	ppu_romsize = 0x40000, ppu_banksize = 0x800,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+Overview
+PRG ROM size: 512 KiB
+PRG ROM bank size: 8 KiB
+PRG RAM: Yes, internal, battery backed.
+CHR capacity: 256 KiB ROM
+CHR bank size: 1 KiB and 2 KiB
+Nametable mirroring: Controlled by mapper
+Subject to bus conflicts: no
+Banks
+CPU $6000-$73FF: 5 KiB PRG RAM divided into 3 protection regions
+CPU $7EF0-$7EFF: Mapper registers
+CPU $8000-$9FFF: 8 KB switchable PRG ROM bank
+CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
+CPU $C000-$DFFF: 8 KB switchable PRG ROM bank
+CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
+PPU $0000-$07FF (or $1000-$17FF): 2 KB switchable CHR bank
+PPU $0800-$0FFF (or $1800-$1FFF): 2 KB switchable CHR bank
+PPU $1000-$13FF (or $0000-$03FF): 1 KB switchable CHR bank
+PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
+PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
+PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
+Registers
+CHR Select 0 ($7EF0)
+7  bit  0
+CCCC CCC.
+|||| |||
+++++-+++-- Select 2 KiB CHR ROM at PPU $0000 or $1000
+CHR Select 1 ($7EF1)
+7  bit  0
+CCCC CCC.
+|||| |||
+++++-+++-- Select 2 KiB CHR ROM at PPU $0800 or $1800
+CHR Select 2 ($7EF2)
+7  bit  0
+CCCC CCCC
+|||| ||||
+++++-++++- Select 1 KiB CHR ROM at PPU $1000 or $0000
+CHR Select 3 ($7EF3)
+7  bit  0
+CCCC CCCC
+|||| ||||
+++++-++++- Select 1 KiB CHR ROM at PPU $1400 or $0400
+CHR Select 4 ($7EF4)
+7  bit  0
+CCCC CCCC
+|||| ||||
+++++-++++- Select 1 KiB CHR ROM at PPU $1800 or $0800
+CHR Select 5 ($7EF5)
+7  bit  0
+CCCC CCCC
+|||| ||||
+++++-++++- Select 1 KiB CHR ROM at PPU $1C00 or $0C00
+CHR Mode / Mirroring Control ($7EF6)
+7  bit  0
+.... ..CM
+       ||
+       |+- Mirroring (0:Horizontal, 1:Vertical)
+       +-- CHR A12 inversion (0: two 2 KB banks at $0000-$0FFF,
+                                 four 1 KB banks at $1000-$1FFF;
+                              1: two 2 KB banks at $1000-$1FFF,
+                                 four 1 KB banks at $0000-$0FFF)
+PRG RAM enable 0 ($7EF7)
+7  bit  0
+XXXX XXXX
+|||| ||||
+++++-++++- Write $CA to enable RAM from $6000 to $67FF, write anything else to disable
+PRG RAM enable 1 ($7EF8)
+7  bit  0
+XXXX XXXX
+|||| ||||
+++++-++++- Write $69 to enable RAM from $6800 to $6FFF, write anything else to disable
+PRG RAM enable 2 ($7EF9)
+7  bit  0
+XXXX XXXX
+|||| ||||
+++++-++++- Write $84 to enable RAM from $7000 to $73FF, write anything else to disable
+PRG Select 0/1/2 ($7EFA/$7EFB/$7EFC)
+Selects the 8 KiB PRG-ROM bank at CPU $8000 ($7EFA)/$A000 ($7EFB)/$C000 ($7EFC).
+
+iNES Mapper 082:
+
+D~7654 3210
+  ---------
+  ..DC BA..
+    || |+--- PRG A13
+    || +---- PRG A14
+    |+------ PRG A15
+    +------- PRG A16
+Mapper 82 does not support more than 128KiB of PRG, due to its interpretation of the order of bits in the register. One translation assumes that bit 6 denotes PRG A17, but that bit is not connected to any ASIC pin, and therefore that translation cannot work on real hardware regardless of how the ASIC is connected to ROM.
+
+NES 2.0 Mapper 552:
+
+D~7654 3210
+  ---------
+  ..AB CDEF
+    || |||+- PRG A18
+    || ||+-- PRG A17
+    || |+--- PRG A16
+    || +---- PRG A15
+    |+------ PRG A14
+    +------- PRG A13
+In other words, NES 2.0 Mapper 552 reflects the fact that the PRG mask ROM address lines A13-A18 are connected in reverse order, something previously seen on the J.Y. Company ASIC in PRG banking mode 3.
+
+IRQ
+The X1-017's IRQ functionality was not used by the commercial games, and only reverse-engineered in January 2020. No emulators support the IRQ as of January 2020.
+
+It effectively only provides the ability to schedule an IRQ up to 4100 cycles in the future, short enough that even a top status bar will require a "spacing" IRQ, and its 16x prescaler is too coarse for close raster effects. Furthermore, acknowledging the IRQ reloads the counter, so it subsequent IRQs will tend to creep forward due to the 6502's variable IRQ latency.
+
+IRQ Latch ($7EFD)
+An eight-bit wide register, specifying the reload value for the IRQ.
+
+IRQ Control ($7EFE)
+7  bit  0
+.... .MIC
+      |||
+      ||+- 1: Enable counting
+      ||   0: Disable counting and reload counter, ([$7EFD]+2)*16 if [$7EFD] is nonzero; 17 if it's zero.
+      |+-- 1: Enable asserting /IRQ, 0: don't.
+      +--- Unknown. Counting only works if this bit is 0.
+The IRQ will count down while counting is enabled. It's possible to generate multiple IRQs in a row by toggling the "I" bit above before acknowledging the interrupt.
+
+IRQ Acknowledge and reload ($7EFF)
+Any write to this register will de-assert IRQ and reload the counter. If [$7EFD] is nonzero, the value reloaded is ([$7EFD]+1)*16. If [$7EFD] is zero, the value reloaded is 1.
+
+Known Games
+SD Keiji: Blader (ＳＤ刑事ブレイダー)
+Kyuukyoku Harikiri Stadium 1989 Edition (究極ハリキリスタジアム平成元年版)
+Kyuukyoku Harikiri Stadium III (究極ハリキリスタジアムIII)
+Kyuukyoku Harikiri Koushien (究極ハリキリ甲子園)
+*/
+
+
+
+function cpu_dump(d, pagesize, banksize)
+{
+        for(local i = 0; i < (pagesize-1); i++){
+		  // Use 1st 8KB PRG window
+		  cpu_write(d,0x7EFA, (i&0xf)<<2 );
+		  cpu_read(d, 0x8000, banksize);
+        }
+	// Last 8KB PRG fixed ROM
+	cpu_read(d, 0xE000, banksize);
+
+}
+function ppu_dump(d, pagesize, banksize)
+{
+	for(local i = 0; i < pagesize; i++){
+		  // Use 1st 2KB CHR window
+		  cpu_write(d,0x7EF0, i<<1 );
+		  ppu_read(d, 0, banksize);
+	}
+}

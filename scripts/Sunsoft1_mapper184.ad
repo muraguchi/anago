@@ -1,0 +1,44 @@
+// Sunsoft Tokaido 53 tsugi
+board <- {
+	mappernum = 184,
+	cpu_romsize = 0x8000, cpu_banksize = 0x4000,
+	ppu_romsize = 0x8000, ppu_banksize = 0x1000,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+This is part of a family of Sunsoft mappers used largely by Japanese games: (iNES Mapper 089, iNES Mapper 093, iNES Mapper 184)
+
+This mapper is for a few games which use the Sunsoft-1 mapper.
+
+Fantasy Zone (J), despite using the Sunsoft-1 chip, is more easily emulated by Mapper 093 because it was written to support execution using either the Sunsoft-2 IC and a variant board that used the Sunsoft-1 IC.
+
+Despite the mapper existing as a single IC, its functionality is describable using a 74139, a 74174, and a 74157, and so should probably be considered discrete logic.
+
+Here is the documentation in disch's original style:
+
+ Registers:
+ --------------------------
+   $6000-7FFF:  [.HHH .LLL]
+     H = Selects 4k CHR @ $1000
+     L = Selects 4k CHR @ $0000
+ 
+ The most significant bit of H is always set in hardware. (i.e. its range is 4 to 7)
+ (There can be no SRAM because the register is mapped into $6000-7FFF)
+*/
+
+
+
+function cpu_dump(d, pagesize, banksize)
+{
+	cpu_read(d, 0x8000, banksize);
+	cpu_read(d, 0xC000, banksize);
+
+}
+function ppu_dump(d, pagesize, banksize)
+{
+	for(local i = 0; i < pagesize; i++){
+		  cpu_write(d,0x6000, (i)&0x7);
+		  ppu_read(d, 0, banksize);
+	}
+}
