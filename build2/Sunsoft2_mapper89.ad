@@ -1,0 +1,46 @@
+// Sunsoft2: Mitokoumon(J) 
+board <- {
+	mappernum = 89,
+	cpu_romsize = 0x20000, cpu_banksize = 0x4000,
+	ppu_romsize = 0x20000, ppu_banksize = 0x2000,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+ Registers **BUS CONFLICTS**:
+ --------------------------
+ 
+   $8000-FFFF:  [CPPP MCCC]
+     C = Select 8k CHR @ $0000
+     P = Select 16k PRG @ $8000
+     M = Mirroring:
+       0 = 1ScA
+       1 = 1ScB
+ 
+ 
+ PRG Setup:
+ --------------------------
+ 
+       $8000   $A000   $C000   $E000  
+     +---------------+---------------+
+     |     $8000     |     { -1}     |
+     +---------------+---------------+
+*/
+
+
+function cpu_dump(d, pagesize, banksize)
+{
+	for(local i=0; i<(pagesize-1);i++){
+		  cpu_write(d, 0x8000, i<<4);
+		  cpu_read(d, 0x8000, banksize);
+	}
+	cpu_read(d, 0xC000, banksize);
+}
+
+function ppu_dump(d, pagesize, banksize)
+{
+	for(local i=0; i<pagesize;i++){
+		  cpu_write(d, 0x8000, ((i&0x8)<<4) | (i&0x7) );
+		  ppu_read(d, 0x0000, banksize);
+	}
+}
