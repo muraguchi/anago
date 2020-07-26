@@ -1,0 +1,51 @@
+// MURDER on the MISSISSIPPI(J)
+
+board <- {
+	mappernum = 140,
+	cpu_romsize = 0x20000, cpu_banksize = 0x4000,
+	ppu_romsize = 0x20000, ppu_banksize = 0x2000,
+	ppu_ramfind = false, vram_mirrorfind = true
+};
+
+/*
+ Here are Disch's original notes:  
+ ========================
+ =  Mapper 140          =
+ ========================
+ 
+ 
+ Example Game:
+ --------------------------
+ Bio Senshi Dan - Increaser Tono Tatakai
+ 
+ 
+ Notes:
+ ---------------------------
+ Regs lie at $6000-7FFF, so there's no SRAM
+ 
+ 
+ Registers:
+ --------------------------
+   $6000-7FFF:  [..PP CCCC]
+     P = Selects 32k PRG @ $8000
+     C = Selects 8k CHR @ $0000
+*/
+
+function cpu_dump(d, pagesize, banksize)
+{
+        for(local i = 0; i < pagesize; i+=2){
+		  // 2 bits of BANK ADDR
+		  cpu_write(d,0x6000, ((i>>1)&0x3)<<4  );
+		  cpu_read(d, 0x8000, banksize);
+		  cpu_read(d, 0xC000, banksize);
+        }
+}
+
+function ppu_dump(d, pagesize, banksize)
+{
+	for(local i = 0; i < pagesize; i++){
+		  // 4 bits of BANK ADDR
+		  cpu_write(d,0x6000, (i&0xf)          );
+		  ppu_read(d, 0, banksize);
+	}
+}
