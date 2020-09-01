@@ -1,3 +1,4 @@
+# Bird Week
 board <- {
 	mappernum = 185,
 	cpu_romsize = 0x8000, cpu_banksize = 0x8000,
@@ -11,8 +12,6 @@ function cpu_dump(d, pagesize, banksize)
 }
 function ppu_dump(d, pagesize, banksize)
 {
-	for(local i = 0; i < pagesize; i++){
-		cpu_write(d, 0x8000, i);
-		ppu_read(d, 0, banksize);
-	}
+	cpu_write(d, 0x8000, 0x0f);
+	ppu_read(d, 0, banksize);
 }
